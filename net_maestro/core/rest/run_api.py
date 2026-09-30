@@ -6,6 +6,7 @@ that were ingested via the data_ingest management command.
 
 from __future__ import annotations
 
+import logging
 from math import isfinite
 from typing import TYPE_CHECKING, Any
 
@@ -27,6 +28,9 @@ from net_maestro.core.models import (
     Run,
     SimulationPeRecord,
 )
+from net_maestro.core.topology import TopologyError, get_topology
+
+logger = logging.getLogger(__name__)
 
 
 def _fields_for_model(
@@ -186,5 +190,33 @@ class RunDatasetsView(APIView):
                 "simulation_type": run.simulation_type,
                 "datasets": counts,
                 "available": sorted(name for name, count in counts.items() if count),
+                "switch_names": _switch_names(run),
             }
         )
+
+
+def _switch_names(run: Run) -> list[str]:
+    """Return the run's switch names, indexed by the switch id the model reports.
+
+    The model numbers switch LPs by walking the topology file in order, so a
+    switch's position in this list is its `switch_id`. Empty when the run has no
+    FFW config or its topology file is gone, in which case plots keep using the
+    numeric ids.
+
+    TODO: Read this from the run's own copy of the topology once runs keep one;
+    today's lookup is by name, so editing a preset renames a past run's switches.
+    """
+    config = run.ffw_configs.order_by("-id").first()
+    if config is None:
+        return []
+    try:
+        topology = get_topology(config.topology_name)
+    except TopologyError:
+        logger.warning(
+            "Run %s names topology %r, which is no longer readable; "
+            "the heatmap will fall back to switch ids.",
+            run.pk,
+            config.topology_name,
+        )
+        return []
+    return [switch.name for switch in topology.switches]
