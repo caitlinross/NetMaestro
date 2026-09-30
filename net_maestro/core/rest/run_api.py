@@ -161,3 +161,30 @@ class RunFFWPortDataView(APIView):
             .order_by("ts", "switch_id", "port_index")
         )
         return Response(_queryset_to_response(queryset, columns))
+
+
+class RunDatasetsView(APIView):
+    """Report which datasets hold rows for a run, so the UI can pick a source per plot.
+
+    A single run can carry both FFW model stats and ROSS engine stats, so the
+    analysis page resolves each plot's dataset from this rather than from
+    Run.simulation_type.
+    """
+
+    def get(self, _request: Request, run_id: int) -> Response:
+        run = get_object_or_404(Run, pk=run_id)
+        counts = {
+            "event": EventRecord.objects.filter(event_file__run=run).count(),
+            "model": ModelRecord.objects.filter(model_file__run=run).count(),
+            "ross": SimulationPeRecord.objects.filter(simulation_file__run=run).count(),
+            "ffw-switches": FFWSwitchRecord.objects.filter(result_file__run=run).count(),
+            "ffw-terminals": FFWTerminalRecord.objects.filter(result_file__run=run).count(),
+            "ffw-ports": FFWPortRecord.objects.filter(switch_record__result_file__run=run).count(),
+        }
+        return Response(
+            {
+                "simulation_type": run.simulation_type,
+                "datasets": counts,
+                "available": sorted(name for name, count in counts.items() if count),
+            }
+        )
