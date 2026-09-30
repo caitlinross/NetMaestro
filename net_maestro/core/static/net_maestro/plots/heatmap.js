@@ -30,6 +30,23 @@ export const heatmapPlot = () => ({
   },
 
   /**
+   * Turn an axis of switch ids into the topology's switch names.
+   *
+   * Only for profiles whose axes are switch ids. Ids with no name keep the id,
+   * so a run whose topology has gone missing still plots. Plotly reads a string
+   * axis as categorical, which is what these discrete switches want anyway.
+   *
+   * @param {Array<number>} ids - Axis values as they come from the records
+   * @returns {Array<number|string>} The values to hand Plotly
+   */
+  axisTicks(ids) {
+    if (this.profile.axisLabels !== 'switches') {
+      return ids;
+    }
+    return ids.map((id) => String(this.$store.dataStore.switchLabel(id)));
+  },
+
+  /**
    * Initialize the component and set up watchers.
    */
   init() {
@@ -120,8 +137,8 @@ export const heatmapPlot = () => ({
 
     return {
       z,
-      x: sortedDests,
-      y: sortedSources,
+      x: this.axisTicks(sortedDests),
+      y: this.axisTicks(sortedSources),
     };
   },
 

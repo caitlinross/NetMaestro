@@ -78,6 +78,8 @@ const FFW_PROFILE = {
     params: FFW_PARAMS,
     sourceKey: 'switch_id',
     destKey: 'target_index',
+    // Both axes are switch ids, so both read better as the topology's switch names.
+    axisLabels: 'switches',
     // Switch-to-switch links only; terminal-facing ports would mix terminal and switch IDs.
     include: (record) => !record.is_terminal,
     xTitle: 'Destination Switch',

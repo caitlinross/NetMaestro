@@ -79,6 +79,9 @@ export const dataStore = {
   // A run can hold both FFW model stats and ROSS engine stats, so plots resolve
   // their dataset from this rather than from simulationType.
   datasets: null,
+  // Switch names from the run's topology, indexed by switch_id. Empty when the run
+  // has no topology to read, and plots then fall back to the numeric ids.
+  switchNames: [],
   // Per-slot source override chosen in the UI, e.g. { simulation: 'ffw' }.
   slotSources: {},
 
@@ -137,6 +140,7 @@ export const dataStore = {
     this.selectedRunId = runId;
     this.simulationType = simulationType;
     this.datasets = null;
+    this.switchNames = [];
     this.slotSources = {};
     // Plots load once the manifest lands, so they resolve against the real datasets.
     this.fetchDatasets();
@@ -148,12 +152,19 @@ export const dataStore = {
     try {
       const response = await fetch(`/api/v1/runs/${runId}/datasets`);
       if (response.ok && runId === this.selectedRunId) {
-        this.datasets = (await response.json()).datasets;
+        const manifest = await response.json();
+        this.datasets = manifest.datasets;
+        this.switchNames = manifest.switch_names ?? [];
       }
     } catch (error) {
       console.warn('Failed to fetch run datasets; falling back to simulation type', error);
     }
     this.loadTick++;
+  },
+
+  /** A switch's name from the run's topology, or its id when there is no name for it. */
+  switchLabel(switchId) {
+    return this.switchNames[switchId] ?? switchId;
   },
 
   /** The sources this run has data for, for one plot slot (used by the tab's toggle). */
