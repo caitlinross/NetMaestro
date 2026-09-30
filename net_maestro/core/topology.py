@@ -259,8 +259,19 @@ def _parse(topo_name: str, path: Path) -> Topology:
     )
 
 
-def list_topologies() -> tuple[Topology, ...]:
+def family_label(family: str) -> str:
+    """Return a family word the way a topology label would spell it."""
+    return _LABELS.get(family, family.capitalize())
+
+
+def list_topologies(family: str | None = None) -> tuple[Topology, ...]:
     """Return every available topology, ordered by switch count then name.
+
+    `family` narrows the result to the topologies carrying that word in their
+    name, the way `fluid-flow-wan-fabric-5-site` carries `fabric`. The match is
+    against whole dash-separated words, so `fabric` does not also pull in a
+    name like `fabricated`. Matching on the name is what there is to go on
+    until topologies are database-backed and can hold a field of their own.
 
     Reads the directory every time rather than caching: other processes (the
     ingest command, other containers) add files without this one knowing.
@@ -268,8 +279,11 @@ def list_topologies() -> tuple[Topology, ...]:
     YAML files that are not topologies are passed over quietly. Files that are
     topologies but cannot be read are logged and skipped.
     """
+    wanted = family.strip().lower() if family else None
     topologies = []
     for path in sorted(topology_dir().glob("*.yaml")):
+        if wanted is not None and wanted not in path.stem.lower().split("-"):
+            continue
         try:
             topologies.append(_parse(path.stem, path))
         except NotATopologyError as exc:

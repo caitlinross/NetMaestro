@@ -187,6 +187,39 @@ def test_topologies_are_listed_by_switch_count_then_name(
     assert [t.name for t in topology.list_topologies()] == ["alpha", "zulu", "trio"]
 
 
+def test_family_narrows_the_list_to_matching_names(
+    api_client: APIClient, topology_dir: Path
+) -> None:
+    """The Available Models page opens the topology page on one model's presets."""
+    api_client.post(URL, {**PAYLOAD, "name": "ffw-fabric-5-site"}, format="json")
+    api_client.post(URL, {**PAYLOAD, "name": "ffw-fabric-2-site"}, format="json")
+    api_client.post(URL, {**PAYLOAD, "name": "ffw-8-switch"}, format="json")
+
+    names = [t.name for t in topology.list_topologies(family="fabric")]
+
+    assert names == ["ffw-fabric-2-site", "ffw-fabric-5-site"]
+
+
+def test_family_matches_whole_words_only(api_client: APIClient, topology_dir: Path) -> None:
+    """`fabric` must not also pull in a name that merely starts with it."""
+    api_client.post(URL, {**PAYLOAD, "name": "fabricated-topology"}, format="json")
+
+    assert topology.list_topologies(family="fabric") == ()
+
+
+def test_no_family_lists_everything(api_client: APIClient, topology_dir: Path) -> None:
+    api_client.post(URL, {**PAYLOAD, "name": "ffw-fabric-5-site"}, format="json")
+    api_client.post(URL, {**PAYLOAD, "name": "ffw-8-switch"}, format="json")
+
+    assert len(topology.list_topologies()) == 2
+
+
+def test_family_label_keeps_fabric_uppercase() -> None:
+    assert topology.family_label("fabric") == "FABRIC"
+    assert topology.family_label("wan") == "WAN"
+    assert topology.family_label("dragonfly") == "Dragonfly"
+
+
 def test_anonymous_requests_cannot_save(api_client: APIClient, topology_dir: Path) -> None:
     """Saving writes a file into the directory CODES reads, so it needs a user."""
     api_client.force_authenticate(user=None)
