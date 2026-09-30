@@ -66,6 +66,23 @@
     </label>
     <div class="tab-content p-6">
       <div class="flex-1 bg-base-300 p-4">
+        <!-- Switches and terminals are both model data; pick which the time plot shows. -->
+        <div class="flex items-center gap-2 pb-3"
+             x-show="$store.dataStore.datasets
+                     && $store.dataStore.slotOptions('networkTime').length > 1">
+          <span class="text-sm opacity-70">Time plot:</span>
+          <div class="join">
+            <template x-for="option in $store.dataStore.slotOptions('networkTime')"
+                      :key="option.source">
+              <button type="button"
+                      class="btn btn-xs join-item"
+                      :class="$store.dataStore.activeSlotSource('networkTime') === option.source
+                              ? 'btn-primary' : 'btn-ghost'"
+                      @click="$store.dataStore.setSlotSource('networkTime', option.source)"
+                      x-text="option.label"></button>
+            </template>
+          </div>
+        </div>
         <div class="grid grid-cols-2 gap-4 h-full">
           <div class="bg-base-100 rounded-lg">
             {% include 'net_maestro/plots/heatmap.html' %}
