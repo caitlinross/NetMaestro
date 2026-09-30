@@ -21,6 +21,7 @@ from net_maestro.core.models.simulation_pe_record import SimulationPeRecord
 from net_maestro.core.parsers.ross_binary_file import RecordType
 from net_maestro.core.parsers.ross_binary_file import ROSSFile as SimulationFileParser
 from net_maestro.core.services.ffw import (
+    FFW_ENGINE_STATS_FILE,
     FFW_STATS_FILES,
     FFW_TRAFFIC_DEFAULTS,
     execute_ffw_model,
@@ -244,6 +245,10 @@ def run_ffw_simulation(  # noqa: PLR0913
     rt_interval: int = 1,
     vt_interval: int = 1e8,
     vt_samp_end: int = 1.7e10,
+    engine_stats: int = 1,
+    pe_data: int = 1,
+    kp_data: int = 1,
+    lp_data: int = 1,
     binary_path: str = "",
     config_path: str = "",
 ) -> None:
@@ -273,6 +278,10 @@ def run_ffw_simulation(  # noqa: PLR0913
             rt_interval=rt_interval,
             vt_interval=vt_interval,
             vt_samp_end=vt_samp_end,
+            engine_stats=engine_stats,
+            pe_data=pe_data,
+            kp_data=kp_data,
+            lp_data=lp_data,
             config_path=str(ffw_config_path),
             working_dir=str(ffw_config_path.parent),
             binary_path=ffw_binary_path,
@@ -288,6 +297,21 @@ def run_ffw_simulation(  # noqa: PLR0913
                         FFWResultFile.objects.create(run=run, file=File(stream, name=name))
                     )
         run_ffw_ingest_task([result_file.pk for result_file in result_files])
+
+        # The engine stats live on the same Run: the analysis page picks the dataset
+        # per plot, so one run shows both model and engine metrics.
+        engine_stats_path = stats_dir / FFW_ENGINE_STATS_FILE
+        if engine_stats_path.is_file():
+            with transaction.atomic():
+                run.simulation_files.all().delete()
+                with engine_stats_path.open("rb") as stream:
+                    engine_file = SimulationFile.objects.create(
+                        run=run, file=File(stream, name=FFW_ENGINE_STATS_FILE)
+                    )
+            run_simulation_task(engine_file.pk)
+        else:
+            logger.warning("FFW run %s wrote no %s", run_id, FFW_ENGINE_STATS_FILE)
+
         run.status = RunStatus.COMPLETED
         run.save()
         logger.info("FFW simulation finished for run %s", run_id)

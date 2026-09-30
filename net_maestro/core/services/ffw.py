@@ -20,6 +20,9 @@ logger = logging.getLogger(__name__)
 
 FFW_STATS_FILES = ("ross-stats-model.bin", "ross-stats-analysis-lps.bin")
 
+# GVT-sampled simulation engine stats (PE/KP/LP), written when --engine-stats is on.
+FFW_ENGINE_STATS_FILE = "ross-stats-gvt.bin"
+
 
 # The settings naming the stock binary and template traffic config for each traffic mode.
 FFW_TRAFFIC_DEFAULTS: dict[str, dict[str, str]] = {
@@ -116,6 +119,10 @@ def execute_ffw_model(  # noqa: PLR0913
     rt_interval: int,
     vt_interval: int,
     vt_samp_end: int,
+    engine_stats: int,
+    pe_data: int,
+    kp_data: int,
+    lp_data: int,
     config_path: str,
     working_dir: str,
     binary_path: str,
@@ -141,6 +148,10 @@ def execute_ffw_model(  # noqa: PLR0913
         f"--rt-interval={rt_interval}",
         f"--vt-interval={vt_interval}",
         f"--vt-samp-end={vt_samp_end}",
+        f"--engine-stats={engine_stats}",
+        f"--pe-data={pe_data}",
+        f"--kp-data={kp_data}",
+        f"--lp-data={lp_data}",
         f"--stats-path={stats_dir}",
         "--",
         config_path,
