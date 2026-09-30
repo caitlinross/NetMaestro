@@ -26,7 +26,7 @@ from .forms import ComponentModelForm, FFWSimulationForm, PHOLDSimulationForm
 from .models import ComponentModel, FFWSimulationConfig, PHOLDSimulationConfig, Run
 from .simulation_models import SIMULATION_MODELS
 from .tasks import run_ffw_simulation, run_phold_simulation
-from .topology import list_topologies
+from .topology import family_label, list_topologies
 
 logger = logging.getLogger(__name__)
 
@@ -559,10 +559,18 @@ def model_create(request: HttpRequest) -> HttpResponse:
 def topology_page(request: HttpRequest) -> HttpResponse:
     """Render the topology page with the presets available to preview.
 
+    A `family` query parameter narrows the page to one family of topologies,
+    which is how the Available Models page opens it on a single model's presets.
+
     TODO: Replace the read-only preset dropdown with database-backed topologies once
     Topology models exist.
     """
-    context: dict[str, object] = {"topologies": list_topologies()}
+    family = request.GET.get("family", "").strip().lower()
+    context: dict[str, object] = {
+        "topologies": list_topologies(family or None),
+        "family": family,
+        "family_label": family_label(family) if family else "",
+    }
     partial_template = "net_maestro/partials/topology.html"
     if request.headers.get("HX-Request"):
         return render(request, partial_template, context)

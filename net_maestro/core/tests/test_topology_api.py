@@ -4,12 +4,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from django.urls import reverse
 import pytest
 import yaml
 
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from django.test import Client
     from pytest_django.fixtures import SettingsWrapper
     from rest_framework.test import APIClient
 
@@ -218,6 +220,34 @@ def test_family_label_keeps_fabric_uppercase() -> None:
     assert topology.family_label("fabric") == "FABRIC"
     assert topology.family_label("wan") == "WAN"
     assert topology.family_label("dragonfly") == "Dragonfly"
+
+
+def test_topology_page_honours_the_family_parameter(
+    api_client: APIClient, client: Client, topology_dir: Path
+) -> None:
+    """Arriving from the NSF FABRIC Testbed card shows the FABRIC presets alone."""
+    api_client.post(URL, {**PAYLOAD, "name": "ffw-fabric-5-site"}, format="json")
+    api_client.post(URL, {**PAYLOAD, "name": "ffw-8-switch"}, format="json")
+
+    resp = client.get(reverse("topology-partial"), {"family": "fabric"})
+    content = resp.content.decode()
+
+    assert resp.status_code == 200
+    assert [t.name for t in resp.context["topologies"]] == ["ffw-fabric-5-site"]
+    assert "Showing FABRIC topologies only." in content
+    assert "ffw-8-switch" not in content
+
+
+def test_topology_page_without_a_family_shows_everything(
+    api_client: APIClient, client: Client, topology_dir: Path
+) -> None:
+    api_client.post(URL, {**PAYLOAD, "name": "ffw-fabric-5-site"}, format="json")
+    api_client.post(URL, {**PAYLOAD, "name": "ffw-8-switch"}, format="json")
+
+    resp = client.get(reverse("topology-partial"))
+
+    assert len(resp.context["topologies"]) == 2
+    assert "Showing" not in resp.content.decode()
 
 
 def test_anonymous_requests_cannot_save(api_client: APIClient, topology_dir: Path) -> None:

@@ -5,14 +5,32 @@
     <div class="flex flex-col items-start gap-4">
       <div>
         <h1 class="text-3xl font-semibold">Topology</h1>
+        {% if family %}
+        <p class="text-[12.5px] leading-relaxed mt-1" style="color:var(--text-dim);">
+          Showing {{ family_label }} topologies only.
+          <a
+            href="{% url 'topology-partial' %}"
+            hx-get="{% url 'topology-partial' %}"
+            hx-target="#main-content"
+            hx-swap="innerHTML"
+            hx-push-url="true"
+            class="link link-secondary"
+          >
+            Show all topologies
+          </a>
+        </p>
+        {% else %}
         <p class="text-[12.5px] leading-relaxed mt-1" style="color:var(--text-dim);">
           Preview a network topology.
         </p>
+        {% endif %}
       </div>
       <fieldset>
         <legend class="fieldset-legend">Topology</legend>
         <select class="select w-80" x-ref="picker" @change="select($event.target)">
-          <option value="">Select a topology...</option>
+          <option value="">
+            {% if family and not topologies %}No {{ family_label }} topologies yet{% else %}Select a topology...{% endif %}
+          </option>
           {% for topology in topologies %}
           <option
             value="{{ topology.name }}"
