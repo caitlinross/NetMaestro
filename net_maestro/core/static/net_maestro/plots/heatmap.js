@@ -4,7 +4,7 @@
  */
 import _ from 'lodash';
 import Plotly from 'plotly';
-import { plotProfileFor } from './plotProfiles.js';
+import { profileForSlot } from './plotProfiles.js';
 import {
   DARK_LAYOUT,
   purgePlot,
@@ -21,7 +21,8 @@ export const heatmapPlot = () => ({
   selectedMetric: null,
 
   get profile() {
-    return plotProfileFor(this.$store.dataStore.simulationType).heatmap;
+    const store = this.$store.dataStore;
+    return profileForSlot('heatmap', store.datasets, store.slotSources.heatmap);
   },
 
   get metricList() {

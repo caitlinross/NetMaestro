@@ -1,3 +1,5 @@
+import { sourcesForSlot } from './plots/plotProfiles.js';
+
 /**
  * Coordinates zoom/pan across plots that share the same axis parameter.
  *
@@ -73,6 +75,13 @@ export const dataStore = {
   selectedRunId: null,
   simulationType: null,
 
+  // Row counts per dataset for the selected run, from /api/v1/runs/<id>/datasets.
+  // A run can hold both FFW model stats and ROSS engine stats, so plots resolve
+  // their dataset from this rather than from simulationType.
+  datasets: null,
+  // Per-slot source override chosen in the UI, e.g. { simulation: 'ffw' }.
+  slotSources: {},
+
   async fetchRossData() {
     if (!this.selectedRunId) {
       return null;
@@ -127,6 +136,41 @@ export const dataStore = {
   selectRun(runId, simulationType) {
     this.selectedRunId = runId;
     this.simulationType = simulationType;
+    this.datasets = null;
+    this.slotSources = {};
+    // Plots load once the manifest lands, so they resolve against the real datasets.
+    this.fetchDatasets();
+  },
+
+  /** Load which datasets this run holds, then trigger the plots. */
+  async fetchDatasets() {
+    const runId = this.selectedRunId;
+    try {
+      const response = await fetch(`/api/v1/runs/${runId}/datasets`);
+      if (response.ok && runId === this.selectedRunId) {
+        this.datasets = (await response.json()).datasets;
+      }
+    } catch (error) {
+      console.warn('Failed to fetch run datasets; falling back to simulation type', error);
+    }
+    this.loadTick++;
+  },
+
+  /** The sources this run has data for, for one plot slot (used by the tab's toggle). */
+  slotOptions(slot) {
+    return sourcesForSlot(slot, this.datasets);
+  },
+
+  /** The source a slot is currently reading from. */
+  activeSlotSource(slot) {
+    const options = this.slotOptions(slot);
+    const chosen = this.slotSources[slot];
+    return (options.find((o) => o.source === chosen) ?? options[0])?.source ?? null;
+  },
+
+  /** Choose which source a plot slot reads from, and reload the plots. */
+  setSlotSource(slot, source) {
+    this.slotSources = { ...this.slotSources, [slot]: source };
     this.loadTick++;
   },
 };

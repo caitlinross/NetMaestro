@@ -1,5 +1,5 @@
 import Plotly from 'plotly';
-import { plotProfileFor } from './plotProfiles.js';
+import { profileForSlot } from './plotProfiles.js';
 import {
   availableTimeAxes,
   axisConfig,
@@ -24,7 +24,8 @@ export const networkTimePlot = () => ({
   noData: false,
 
   get profile() {
-    return plotProfileFor(this.$store.dataStore.simulationType).networkTime;
+    const store = this.$store.dataStore;
+    return profileForSlot('networkTime', store.datasets, store.slotSources.networkTime);
   },
 
   get xAxisValues() {

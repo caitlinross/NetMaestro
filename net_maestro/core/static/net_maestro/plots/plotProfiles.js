@@ -126,3 +126,90 @@ const PLOT_PROFILES = {
 export function plotProfileFor(simulationType) {
   return PLOT_PROFILES[simulationType] ?? ROSS_PROFILE;
 }
+
+// Switch samples plotted over time. Switches are model data from the same FFW files as
+// terminals and ports, so they belong on the Network Performance tab.
+const FFW_SWITCH_TIME = {
+  dataset: 'ffw-switches',
+  params: FFW_PARAMS,
+  timeParams: FFW_TIME_PARAMS,
+  groupBy: 'switch_id',
+  excludedColumns: [...FFW_SAMPLE_COLUMNS, 'switch_id', 'num_ports'],
+  timeAxes: FFW_TIME_AXES,
+  defaults: { x: 'ts', y: 'shared_buffer_occupancy_mbit' },
+};
+
+// A run can hold both FFW model stats and ROSS engine stats, so each plot slot picks its
+// dataset from what the run actually has rather than from the run's simulation type.
+//
+// `fallbackOnly` sources are used when nothing better has data, but are not offered as a
+// choice: FFW switch data backs the simulation slot so that an FFW run with no engine
+// stats still fills the Simulation Performance tab.
+export const SLOT_SOURCES = {
+  heatmap: [
+    {
+      source: 'ffw-ports',
+      dataset: 'ffw-ports',
+      label: 'Switch links',
+      profile: FFW_PROFILE.heatmap,
+    },
+    { source: 'event', dataset: 'event', label: 'Events', profile: ROSS_PROFILE.heatmap },
+  ],
+  networkTime: [
+    {
+      source: 'ffw-switches',
+      dataset: 'ffw-switches',
+      label: 'Switches',
+      profile: FFW_SWITCH_TIME,
+    },
+    {
+      source: 'ffw-terminals',
+      dataset: 'ffw-terminals',
+      label: 'Terminals',
+      profile: FFW_PROFILE.networkTime,
+    },
+    { source: 'model', dataset: 'model', label: 'Model stats', profile: ROSS_PROFILE.networkTime },
+  ],
+  simulation: [
+    {
+      source: 'ross',
+      dataset: 'ross',
+      label: 'Engine (PE/KP/LP)',
+      profile: ROSS_PROFILE.simulation,
+    },
+    {
+      source: 'ffw-switches',
+      dataset: 'ffw-switches',
+      label: 'Switches',
+      profile: FFW_PROFILE.simulation,
+      fallbackOnly: true,
+    },
+  ],
+};
+
+/** Sources for a slot that the run has data for, in preference order. */
+function resolvableSources(slot, datasets) {
+  const options = SLOT_SOURCES[slot] ?? [];
+  if (!datasets) {
+    return options;
+  }
+  return options.filter((option) => (datasets[option.dataset] ?? 0) > 0);
+}
+
+/**
+ * The sources to offer as a choice for a slot. Empty or single-entry means no toggle:
+ * fallbackOnly sources never appear, and they are dropped entirely once a real source
+ * has data, so the Simulation tab shows engine metrics alone.
+ */
+export function sourcesForSlot(slot, datasets) {
+  const available = resolvableSources(slot, datasets);
+  const offered = available.filter((option) => !option.fallbackOnly);
+  return offered.length > 0 ? offered : available;
+}
+
+/** Resolve a slot's profile: the chosen source if it has data, else the preferred one. */
+export function profileForSlot(slot, datasets, chosenSource) {
+  const available = sourcesForSlot(slot, datasets);
+  const picked = available.find((option) => option.source === chosenSource) ?? available[0];
+  return picked?.profile ?? ROSS_PROFILE[slot] ?? null;
+}

@@ -3,7 +3,7 @@
  * Displays ROSS simulation data as a scatter plot with configurable axes.
  */
 import Plotly from 'plotly';
-import { plotProfileFor } from './plotProfiles.js';
+import { profileForSlot } from './plotProfiles.js';
 import {
   axisConfig,
   createValueList,
@@ -31,7 +31,8 @@ export const scatterPlot = () => ({
   isSyncing: false,
 
   get profile() {
-    return plotProfileFor(this.$store.dataStore.simulationType).simulation;
+    const store = this.$store.dataStore;
+    return profileForSlot('simulation', store.datasets, store.slotSources.simulation);
   },
 
   get valueList() {

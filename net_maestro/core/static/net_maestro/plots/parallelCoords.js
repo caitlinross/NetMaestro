@@ -3,7 +3,7 @@
  * Displays multi-dimensional ROSS data using Plotly's parallel coordinates chart.
  */
 import Plotly from 'plotly';
-import { plotProfileFor } from './plotProfiles.js';
+import { profileForSlot } from './plotProfiles.js';
 import {
   DARK_LAYOUT,
   purgePlot,
@@ -19,10 +19,11 @@ export const parallelCoords = () => ({
   plotId: 'parallelCoords',
   isSyncing: false,
   records: [],
-  plotDimensions: [...plotProfileFor(null).simulation.parallelDimensions],
+  plotDimensions: [...profileForSlot('simulation', null).parallelDimensions],
 
   get profile() {
-    return plotProfileFor(this.$store.dataStore.simulationType).simulation;
+    const store = this.$store.dataStore;
+    return profileForSlot('simulation', store.datasets, store.slotSources.simulation);
   },
 
   /**
