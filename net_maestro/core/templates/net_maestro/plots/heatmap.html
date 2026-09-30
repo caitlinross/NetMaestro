@@ -23,7 +23,7 @@
             <option
               :value="metric.key"
               x-text="metric.label"
-              :disabled="metric.disabled"
+              :disabled="!!metric.disabled"
               :title="metric.tooltip || ''"
             ></option>
           </template>
