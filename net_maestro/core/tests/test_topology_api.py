@@ -238,6 +238,19 @@ def test_topology_page_honours_the_family_parameter(
     assert "ffw-8-switch" not in content
 
 
+def test_topology_page_offers_a_run_link_carrying_the_picker(
+    api_client: APIClient, client: Client, topology_dir: Path
+) -> None:
+    """The run link sends the picker's current value, so it follows the selection."""
+    api_client.post(URL, {**PAYLOAD, "name": "ffw-fabric-5-site"}, format="json")
+
+    content = client.get(reverse("topology-partial")).content.decode()
+
+    assert 'hx-get="{}"'.format(reverse("new-ffw-simulation-config")) in content
+    assert 'hx-include="#topology-picker"' in content
+    assert 'id="topology-picker"' in content
+
+
 def test_topology_page_without_a_family_shows_everything(
     api_client: APIClient, client: Client, topology_dir: Path
 ) -> None:

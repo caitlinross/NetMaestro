@@ -27,7 +27,13 @@
       </div>
       <fieldset>
         <legend class="fieldset-legend">Topology</legend>
-        <select class="select w-80" x-ref="picker" @change="select($event.target)">
+        <select
+          class="select w-80"
+          id="topology-picker"
+          name="topology"
+          x-ref="picker"
+          @change="select($event.target)"
+        >
           <option value="">
             {% if family and not topologies %}No {{ family_label }} topologies yet{% else %}Select a topology...{% endif %}
           </option>
@@ -51,6 +57,21 @@
           Edit
         </button>
       </div>
+      <a
+        href="{% url 'new-ffw-simulation-config' %}"
+        :href="'{% url 'new-ffw-simulation-config' %}?topology=' + encodeURIComponent(topology?.name ?? '')"
+        hx-get="{% url 'new-ffw-simulation-config' %}"
+        hx-include="#topology-picker"
+        hx-target="#main-content"
+        hx-swap="innerHTML"
+        hx-push-url="true"
+        class="btn btn-primary w-80"
+        x-show="topology"
+        @click="activeItem = 'simulation'"
+      >
+        <i class="ri-play-line" aria-hidden="true"></i>
+        Run a Simulation
+      </a>
     </div>
 
     <div class="card bg-base-100 shadow-sm flex-1 min-h-0">
