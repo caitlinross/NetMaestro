@@ -6,6 +6,7 @@ import _ from 'lodash';
 import Plotly from 'plotly';
 import { profileForSlot } from './plotProfiles.js';
 import {
+  axisConfig,
   DARK_LAYOUT,
   purgePlot,
   setupAxisState,
@@ -74,8 +75,8 @@ export const heatmapPlot = () => ({
     ];
     const layout = {
       ...DARK_LAYOUT,
-      xaxis: { title: this.profile.xTitle },
-      yaxis: { title: this.profile.yTitle },
+      xaxis: axisConfig(this.profile.xTitle, { automargin: true }),
+      yaxis: axisConfig(this.profile.yTitle, { automargin: true }),
     };
     setupPlot({
       component: this,
@@ -157,7 +158,7 @@ export const heatmapPlot = () => ({
       return;
     }
 
-    const title =
+    const metricLabel =
       this.metricList.find((m) => m.key === this.selectedMetric)?.label || this.selectedMetric;
     Plotly.react(
       this.heatmapPlotEl,
@@ -168,15 +169,14 @@ export const heatmapPlot = () => ({
           x: matrix.x,
           y: matrix.y,
           colorscale: 'Viridis',
+          // On the trace: the plot has no coloraxis for a layout-level colorbar to reach.
+          colorbar: { title: { text: metricLabel }, titleside: 'right' },
         },
       ],
       {
         ...DARK_LAYOUT,
-        xaxis: { title: this.profile.xTitle },
-        yaxis: { title: this.profile.yTitle },
-        coloraxis: {
-          colorbar: { title: title },
-        },
+        xaxis: axisConfig(this.profile.xTitle, { automargin: true }),
+        yaxis: axisConfig(this.profile.yTitle, { automargin: true }),
       },
     );
   },

@@ -84,8 +84,10 @@ const FFW_PROFILE = {
     axisLabels: 'switches',
     // Switch-to-switch links only; terminal-facing ports would mix terminal and switch IDs.
     include: (record) => !record.is_terminal,
-    xTitle: 'Destination Switch',
-    yTitle: 'Source Switch',
+    // A port's sample counts what its own switch sent towards the target, so the row
+    // is the sender and the column the receiver.
+    xTitle: 'Receiving Switch',
+    yTitle: 'Sending Switch',
     metrics: [
       { key: 'port_sent_mbit', label: 'Sent (Mbit)', aggregate: 'sum' },
       { key: 'port_queued_mbit', label: 'Queued (Mbit)', aggregate: 'sum' },
