@@ -16,15 +16,21 @@ if TYPE_CHECKING:
 class TestSimulationModelsData:
     """Test the SIMULATION_MODELS registry structure."""
 
-    def test_four_simulation_models(self) -> None:
-        assert len(SIMULATION_MODELS) == 4
+    def test_five_simulation_models(self) -> None:
+        assert len(SIMULATION_MODELS) == 5
 
-    def test_fluid_flow_wan_is_first(self) -> None:
-        assert SIMULATION_MODELS[0]["name"] == "Fluid Flow WAN"
+    def test_fabric_is_first(self) -> None:
+        assert SIMULATION_MODELS[0]["name"] == "NSF FABRIC Testbed"
 
     def test_order(self) -> None:
         names = [m["name"] for m in SIMULATION_MODELS]
-        assert names == ["Fluid Flow WAN", "PHOLD", "Ping Pong", "ESnet"]
+        assert names == [
+            "NSF FABRIC Testbed",
+            "Fluid Flow WAN",
+            "PHOLD",
+            "Ping Pong",
+            "ESnet",
+        ]
 
     def test_enabled_models_have_url(self) -> None:
         for m in SIMULATION_MODELS:
@@ -37,7 +43,7 @@ class TestSimulationModelsData:
         assert set(disabled) == {"Ping Pong", "ESnet"}
 
     def test_ffw_has_component_models(self) -> None:
-        ffw = SIMULATION_MODELS[0]
+        ffw = next(m for m in SIMULATION_MODELS if m["name"] == "Fluid Flow WAN")
         components = ffw["component_models"]
         assert isinstance(components, list)
         component_names = [c["name"] for c in components]
@@ -75,6 +81,7 @@ class TestModelsListView:
         assert "Get Started" in content
         assert reverse("configuration-partial") in content
         assert reverse("simulation-config") in content
+        assert f"{reverse('topology-partial')}?family=fabric" in content
 
     def test_coming_soon_for_disabled_models(self, client: Client) -> None:
         response = client.get(reverse("models-list-partial"))
@@ -86,8 +93,8 @@ class TestModelsListView:
         response = client.get(reverse("models-list-partial"))
         content = response.content.decode()
 
-        assert 'aria-label="Toggle Fluid Flow WAN details" checked' in content
-        assert 'aria-label="Toggle PHOLD details" checked' not in content
+        assert 'aria-label="Toggle NSF FABRIC Testbed details" checked' in content
+        assert 'aria-label="Toggle Fluid Flow WAN details" checked' not in content
 
     def test_component_models_rendered_inside_ffw(self, client: Client) -> None:
         response = client.get(reverse("models-list-partial"))

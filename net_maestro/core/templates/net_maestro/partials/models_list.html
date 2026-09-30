@@ -21,8 +21,8 @@
               <div class="badge badge-neutral">Coming Soon</div>
               {% else %}
               <a
-                href="{% url sim.url_name %}"
-                hx-get="{% url sim.url_name %}"
+                href="{% url sim.url_name %}{{ sim.url_query }}"
+                hx-get="{% url sim.url_name %}{{ sim.url_query }}"
                 hx-target="#main-content"
                 hx-swap="innerHTML"
                 hx-push-url="true"

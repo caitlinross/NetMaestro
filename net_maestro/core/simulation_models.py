@@ -22,6 +22,26 @@ def _component_models_for(names: list[str]) -> list[dict[str, object]]:
 
 SIMULATION_MODELS: list[dict[str, object]] = [
     {
+        "name": "NSF FABRIC Testbed",
+        "engine": "CODES",
+        "category": "WAN Reference Topology",
+        "icon_class": "ri-organization-chart",
+        "description": (
+            "FABRIC is the NSF's nationwide programmable networking testbed, "
+            "modeled here as fluid-flow WAN topologies built from its public "
+            "resource advertisement. The preset is a five-site cut of the "
+            "core: 1.2 Tbps TeraCore ring segments feeding the 100 Gbps "
+            "STAR-MICH spoke, which is the shared bottleneck."
+        ),
+        "tags": ["fluid-flow-wan", "TeraCore", "NSF"],
+        "url_name": "topology-partial",
+        # Open the topology page on the FABRIC presets alone.
+        "url_query": "?family=fabric",
+        "active_page": "topology",
+        "disabled": False,
+        "component_models": _component_models_for(["fluid-flow-wan-switch-lp"]),
+    },
+    {
         "name": "Fluid Flow WAN",
         "engine": "CODES",
         "category": "WAN Simulation",
