@@ -29,6 +29,11 @@ export const heatmapPlot = () => ({
     return this.profile.metrics;
   },
 
+  /** The card heading, which follows whichever source the slot is reading. */
+  get plotTitle() {
+    return this.profile.title ?? 'Heatmap';
+  },
+
   /**
    * Turn an axis of switch ids into the topology's switch names.
    *

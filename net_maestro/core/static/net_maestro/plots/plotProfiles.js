@@ -7,6 +7,7 @@
 const ROSS_PROFILE = {
   heatmap: {
     dataset: 'event',
+    title: 'Event Heatmap',
     sourceKey: 'source_lp',
     destKey: 'dest_lp',
     xTitle: 'Receiving LP ID',
@@ -76,6 +77,7 @@ const FFW_PROFILE = {
   heatmap: {
     dataset: 'ffw-ports',
     params: FFW_PARAMS,
+    title: 'Switch Link Heatmap',
     sourceKey: 'switch_id',
     destKey: 'target_index',
     // Both axes are switch ids, so both read better as the topology's switch names.

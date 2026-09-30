@@ -1,10 +1,10 @@
 <div class="card bg-base-100 min-w-max mb-4" x-data="heatmapPlot">
   <div class="card-body">
-    <h2 class="card-title text-white">
-      Event Heatmap
+    <h2 class="card-title text-white" x-text="plotTitle">
+      Heatmap
     </h2>
     <div x-show="noData" x-cloak class="flex items-center justify-center h-64 text-base-content/50">
-      <span>No event data available for this run.</span>
+      <span x-text="`No data available for this run's ${plotTitle.toLowerCase()}.`"></span>
     </div>
     <div id="heatmapPlot" x-show="!noData"></div>
   </div>
