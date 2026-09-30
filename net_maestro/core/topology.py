@@ -26,7 +26,7 @@ import yaml
 logger = logging.getLogger(__name__)
 
 # Labels that should stay uppercase.
-_LABELS = {"wan": "WAN"}
+_LABELS = {"wan": "WAN", "fabric": "FABRIC"}
 
 # A name is also the file stem and the detail URL segment, so hold it to what
 # the `slug` URL converter accepts.
