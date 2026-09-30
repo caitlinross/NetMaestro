@@ -418,6 +418,11 @@ def _ffw_simulation_form_page(
     """Handle the FFW form for both new and cloned configs.
 
     A clone is saved as a new Run and config, as PHOLD's edit does.
+
+    A new config takes its topology from a `topology` query parameter when one
+    is given, which is how the topology page hands off the preset on screen. A
+    name that is not a current preset simply leaves the dropdown unselected;
+    the form rejects it on submit like any other invalid choice.
     """
     if request.method == "POST":
         form = FFWSimulationForm(request.POST)
@@ -435,7 +440,8 @@ def _ffw_simulation_form_page(
             initial={"run_identifier": source.run.name, "description": source.run.description},
         )
     else:
-        form = FFWSimulationForm()
+        topology_name = request.GET.get("topology", "").strip()
+        form = FFWSimulationForm(initial={"topology_name": topology_name} if topology_name else {})
 
     context: dict[str, object] = {
         "form": form,
