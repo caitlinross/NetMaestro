@@ -33,6 +33,10 @@ const VIRIDIS = [
   [253, 231, 37],
 ];
 
+// Ring around whatever is selected. The canvas border color, so a focused node
+// reads as picked rather than as carrying some extra state.
+const FOCUS_COLOR = '#ffffff';
+
 // An edge with nothing crossing it still has to be visible, so link width runs
 // from a floor rather than from nothing.
 const MIN_EDGE_WIDTH = 2;
@@ -81,6 +85,19 @@ const stateStyle = () => [
       'target-arrow-color': PAUSED_COLOR,
     },
   },
+  // Focus rules come last so they win over the state colors above.
+  {
+    selector: '.dimmed',
+    style: { opacity: 0.18 },
+  },
+  {
+    selector: 'node.focused',
+    style: { 'border-color': FOCUS_COLOR, 'border-width': 4 },
+  },
+  {
+    selector: 'edge.focused',
+    style: { 'overlay-color': FOCUS_COLOR, 'overlay-opacity': 0.25, 'overlay-padding': 4 },
+  },
 ];
 
 export const networkView = () => ({
@@ -102,6 +119,7 @@ export const networkView = () => ({
     }
     this.$watch('$store.dataStore.loadTick', () => this.load());
     this.$watch('$store.timeWindowStore.window', () => this.paint());
+    this.$watch('$store.selectionStore.selected', () => this.markSelection());
   },
 
   destroy() {
@@ -181,7 +199,68 @@ export const networkView = () => ({
     this.cy = createGraph(container, this.topology, stateStyle());
     this.resizeObserver = new ResizeObserver(() => fitGraph(this.cy));
     this.resizeObserver.observe(container);
+    this.listenForClicks();
     this.paint();
+    this.markSelection();
+  },
+
+  /** Let a tap on the graph choose what every plot focuses on. */
+  listenForClicks() {
+    const selection = this.$store.selectionStore;
+    this.cy.on('tap', 'node', (event) => {
+      const id = this.switchId(event.target.id());
+      if (id !== null) {
+        selection.toggleSwitch(id);
+      }
+    });
+    this.cy.on('tap', 'edge', (event) => {
+      const source = this.switchId(event.target.source().id());
+      const target = this.switchId(event.target.target().id());
+      if (source !== null && target !== null) {
+        selection.toggleLink(source, target);
+      }
+    });
+    // Tapping the empty canvas clears, the way a click-off usually does.
+    this.cy.on('tap', (event) => {
+      if (event.target === this.cy) {
+        selection.clear();
+      }
+    });
+  },
+
+  /**
+   * The switch id a node name belongs to, the reverse of `nodeId`.
+   *
+   * @param {string} name - The node's id on the canvas
+   * @returns {?number} The switch id, or null when the topology has no such name
+   */
+  switchId(name) {
+    const index = this.$store.dataStore.switchNames.indexOf(name);
+    return index === -1 ? null : index;
+  },
+
+  /** Ring what is selected and fade what is not. */
+  markSelection() {
+    if (!this.cy) {
+      return;
+    }
+    const selection = this.$store.selectionStore;
+    this.cy.batch(() => {
+      for (const node of this.cy.nodes()) {
+        const id = this.switchId(node.id());
+        const inSelection = id !== null && selection.matchesSwitch(id);
+        node.toggleClass('dimmed', !inSelection);
+        node.toggleClass('focused', selection.active && inSelection);
+      }
+      for (const edge of this.cy.edges()) {
+        const source = this.switchId(edge.source().id());
+        const target = this.switchId(edge.target().id());
+        const inSelection =
+          source !== null && target !== null && selection.matchesLink(source, target);
+        edge.toggleClass('dimmed', !inSelection);
+        edge.toggleClass('focused', selection.active && inSelection);
+      }
+    });
   },
 
   /**

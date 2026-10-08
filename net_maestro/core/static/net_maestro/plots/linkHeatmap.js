@@ -21,6 +21,7 @@ import {
   setupAxisState,
   setupLoadWatcher,
   setupPlot,
+  setupSelectionWatcher,
 } from './plotUtils.js';
 
 // biome-ignore lint/style/useNamingConvention: matches the API's ?stats_type= query param
@@ -43,12 +44,15 @@ export const linkHeatmap = () => ({
   noData: false,
   records: [],
   selectedMetric: null,
+  // Row label -> the switch ids behind it, so a clicked row can name its link.
+  linkOf: null,
 
   init() {
     setupAxisState(this, 'linkHeatmap', [{ prop: 'selectedMetric', default: METRICS[0].key }]);
     setupLoadWatcher(this, () => this.load());
     // Only the marker moves with the window, so redraw the layout, not the data.
     this.$watch('$store.timeWindowStore.window', () => this.markWindow());
+    setupSelectionWatcher(this, () => this.markWindow());
   },
 
   get metricList() {
@@ -102,10 +106,15 @@ export const linkHeatmap = () => ({
    * @param {Object} event - Plotly click event data
    */
   seekToPoint(event) {
-    const seconds = event?.points?.[0]?.x;
-    if (Number.isFinite(seconds)) {
+    const point = event?.points?.[0];
+    if (Number.isFinite(point?.x)) {
       // The axis is in seconds; the store keeps the run's raw values.
-      this.$store.timeWindowStore.seekTime(seconds / SECONDS_FROM_NS.scale);
+      this.$store.timeWindowStore.seekTime(point.x / SECONDS_FROM_NS.scale);
+    }
+    // A cell means one link at one moment, so a click says both.
+    const link = this.linkOf?.get(point?.y);
+    if (link) {
+      this.$store.selectionStore.toggleLink(link.source, link.target);
     }
   },
 
@@ -135,6 +144,13 @@ export const linkHeatmap = () => ({
     const columnOf = new Map(times.map((time, index) => [time, index]));
     const labels = [...new Set(this.records.map((record) => this.linkLabel(record)))].sort();
     const rowOf = new Map(labels.map((label, index) => [label, index]));
+    // A row's label is what Plotly reports on a click, so keep the ids behind it.
+    this.linkOf = new Map(
+      this.records.map((record) => [
+        this.linkLabel(record),
+        { source: record.switch_id, target: record.target_index },
+      ]),
+    );
 
     const z = labels.map(() => new Array(times.length).fill(null));
     for (const record of this.records) {
@@ -159,6 +175,40 @@ export const linkHeatmap = () => ({
       [0, '#2a2f38'],
       [1, PAUSED_COLOR],
     ];
+  },
+
+  /**
+   * Bands over the rows the selection leaves out.
+   *
+   * Dimming the rest rather than tinting the chosen rows: a switch can touch
+   * most of the links in a small topology, and highlighting six rows of eight
+   * would wash out the chart instead of pointing at anything.
+   */
+  selectionShapes() {
+    const selection = this.$store.selectionStore;
+    const labels = this.linkHeatmapEl?.data?.[0]?.y;
+    if (!(selection.active && labels)) {
+      return [];
+    }
+    return labels
+      .map((label, index) => ({ label, index }))
+      .filter(({ label }) => {
+        const link = this.linkOf?.get(label);
+        return !(link && selection.matchesLink(link.source, link.target));
+      })
+      .map(({ index }) => ({
+        type: 'rect',
+        xref: 'paper',
+        yref: 'y',
+        x0: 0,
+        x1: 1,
+        // Rows are categorical, so a band spans half a step either side of one.
+        y0: index - 0.5,
+        y1: index + 0.5,
+        line: { width: 0 },
+        fillcolor: 'rgba(29, 35, 42, 0.78)',
+        layer: 'above',
+      }));
   },
 
   /** Shapes marking the active window, or none while the whole run is shown. */
@@ -188,8 +238,13 @@ export const linkHeatmap = () => ({
   /** Move the window marker without rebuilding the matrix behind it. */
   markWindow() {
     if (this.isPlotInitialized && this.linkHeatmapEl) {
-      Plotly.relayout(this.linkHeatmapEl, { shapes: this.windowShapes() });
+      Plotly.relayout(this.linkHeatmapEl, { shapes: this.allShapes() });
     }
+  },
+
+  /** Both overlays: the window across time, the selection across links. */
+  allShapes() {
+    return [...this.selectionShapes(), ...this.windowShapes()];
   },
 
   updatePlotData() {
@@ -215,7 +270,7 @@ export const linkHeatmap = () => ({
         ...DARK_LAYOUT,
         xaxis: axisConfig('Virtual Time (s)', { automargin: true }),
         yaxis: axisConfig('Link', { automargin: true, autorange: 'reversed' }),
-        shapes: this.windowShapes(),
+        shapes: this.allShapes(),
       },
     );
   },

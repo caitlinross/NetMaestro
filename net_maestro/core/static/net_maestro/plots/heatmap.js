@@ -20,6 +20,7 @@ import {
   setupAxisState,
   setupLoadWatcher,
   setupPlot,
+  setupSelectionWatcher,
   setupTimeWindowWatcher,
 } from './plotUtils.js';
 
@@ -71,6 +72,74 @@ export const heatmapPlot = () => ({
     setupAxisState(this, 'heatmapPlot', [{ prop: 'selectedMetric', default: 'num_messages' }]);
     setupLoadWatcher(this, () => this.load());
     setupTimeWindowWatcher(this, () => this.updatePlotData());
+    setupSelectionWatcher(this, () => this.markSelection());
+  },
+
+  /** Whether this heatmap's axes are switches, so a cell names a link. */
+  get selectable() {
+    return this.profile.axisLabels === 'switches';
+  },
+
+  /**
+   * Focus the link a clicked cell stands for.
+   *
+   * The axes carry switch names rather than ids, so the click comes back as a
+   * name and has to be resolved the other way.
+   *
+   * @param {Object} event - Plotly click event data
+   */
+  selectCell(event) {
+    const point = event?.points?.[0];
+    if (!(this.selectable && point)) {
+      return;
+    }
+    const names = this.$store.dataStore.switchNames;
+    const source = names.indexOf(String(point.y));
+    const target = names.indexOf(String(point.x));
+    if (source !== -1 && target !== -1) {
+      this.$store.selectionStore.toggleLink(source, target);
+    }
+  },
+
+  /** An outline around the selected cell, or none when nothing is selected. */
+  selectionShapes() {
+    const { selected } = this.$store.selectionStore;
+    if (!(this.selectable && selected?.kind === 'link')) {
+      return [];
+    }
+    const names = this.$store.dataStore.switchNames;
+    const source = names[selected.source];
+    const target = names[selected.target];
+    if (source === undefined || target === undefined) {
+      return [];
+    }
+    const { x, y } = this.heatmapPlotEl?.data?.[0] ?? {};
+    const column = x?.indexOf(target);
+    const row = y?.indexOf(source);
+    if (!(column >= 0 && row >= 0)) {
+      return [];
+    }
+    return [
+      {
+        type: 'rect',
+        xref: 'x',
+        yref: 'y',
+        x0: column - 0.5,
+        x1: column + 0.5,
+        y0: row - 0.5,
+        y1: row + 0.5,
+        line: { color: '#ffffff', width: 2 },
+        fillcolor: 'rgba(0, 0, 0, 0)',
+        layer: 'above',
+      },
+    ];
+  },
+
+  /** Move the cell outline without rebuilding the matrix behind it. */
+  markSelection() {
+    if (this.heatmapPlotEl) {
+      Plotly.relayout(this.heatmapPlotEl, { shapes: this.selectionShapes() });
+    }
   },
 
   /**
@@ -97,6 +166,7 @@ export const heatmapPlot = () => ({
       elementProp: 'heatmapPlotEl',
       data,
       layout,
+      eventHandlers: [{ event: 'plotly_click', handler: (event) => this.selectCell(event) }],
     });
   },
 
@@ -253,6 +323,7 @@ export const heatmapPlot = () => ({
         ...DARK_LAYOUT,
         xaxis: axisConfig(this.profile.xTitle, { automargin: true }),
         yaxis: axisConfig(this.profile.yTitle, { automargin: true }),
+        shapes: this.selectionShapes(),
       },
     );
   },

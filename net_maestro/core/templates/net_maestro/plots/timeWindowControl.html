@@ -40,3 +40,16 @@ which is where a newly selected run starts.
     Whole run
   </button>
 </div>
+
+{% comment %}
+What the plots are focused on. Clicking a switch, a link, or a heatmap cell sets
+it; this says what is set and takes it back off.
+{% endcomment %}
+<div class="flex items-center gap-2 pb-3" x-data="{}" x-show="$store.selectionStore.active" x-cloak>
+  <span class="text-sm opacity-70">Focused on</span>
+  <span class="badge badge-primary badge-sm font-mono"
+        x-text="$store.selectionStore.describe((id) => $store.dataStore.switchLabel(id))"></span>
+  <button type="button" class="btn btn-xs btn-ghost" @click="$store.selectionStore.clear()">
+    Clear
+  </button>
+</div>

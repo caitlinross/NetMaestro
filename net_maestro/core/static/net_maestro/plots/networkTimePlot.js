@@ -20,6 +20,7 @@ import {
   setupAxisState,
   setupLoadWatcher,
   setupPlot,
+  setupSelectionWatcher,
   setupTimeWindowWatcher,
 } from './plotUtils.js';
 
@@ -56,6 +57,40 @@ export const networkTimePlot = () => ({
     ]);
     setupLoadWatcher(this, () => this.load());
     setupTimeWindowWatcher(this, () => this.applyTimeWindow());
+    setupSelectionWatcher(this, () => this.updatePlotData());
+  },
+
+  /**
+   * The switch a series belongs to, for matching against the selection.
+   *
+   * Switch series are keyed by switch id already. Terminal series are keyed by
+   * terminal id, and a terminal belongs to the switch it is attached to.
+   *
+   * @param {string|number} seriesId - The value the profile groups by
+   * @returns {?number} The switch id, or null when the series has no switch
+   */
+  switchOf(seriesId) {
+    if (this.profile.groupBy === 'switch_id') {
+      return Number(seriesId);
+    }
+    if (this.profile.groupBy === 'terminal_id') {
+      const row = this.records.find((record) => record.terminal_id === Number(seriesId));
+      return row?.attached_switch ?? null;
+    }
+    return null;
+  },
+
+  /**
+   * A series' name in the legend.
+   *
+   * @param {string|number} seriesId - The value the profile groups by
+   * @returns {string} What to call the trace
+   */
+  seriesLabel(seriesId) {
+    if (this.profile.groupBy === 'switch_id') {
+      return String(this.$store.dataStore.switchLabel(Number(seriesId)));
+    }
+    return `${this.profile.groupBy.replace('_id', '')} ${seriesId}`;
   },
 
   /**
@@ -196,11 +231,20 @@ export const networkTimePlot = () => ({
       groupedData[seriesId].y.push(record[this.selectedYAxis]);
     }
 
-    const traces = Object.values(groupedData).map((lpData) => ({
-      x: lpData.x,
-      y: lpData.y,
-      showlegend: true,
-    }));
+    const selection = this.$store.selectionStore;
+    const traces = Object.values(groupedData).map((lpData) => {
+      const switchId = this.switchOf(lpData.seriesId);
+      // A series with no switch behind it cannot be outside the selection, so
+      // it stays at full strength rather than fading for no stated reason.
+      const inSelection = switchId === null || selection.matchesSwitch(switchId);
+      return {
+        x: lpData.x,
+        y: lpData.y,
+        name: this.seriesLabel(lpData.seriesId),
+        showlegend: true,
+        opacity: inSelection ? 1 : 0.15,
+      };
+    });
 
     const range = this.windowRange();
     Plotly.react(this.networkTimePlotEl, traces, {

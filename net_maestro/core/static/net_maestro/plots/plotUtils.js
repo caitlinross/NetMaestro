@@ -123,13 +123,32 @@ export function setupAxisState(component, plotName, axisConfigs) {
  * @param {Function} loadFn - Function to call when loadTick changes
  */
 export function setupLoadWatcher(component, loadFn) {
+  // Every load is also the moment a stale selection has to go: whichever plot
+  // gets here first drops one made on a run no longer being looked at.
+  const sync = () =>
+    component.$store.selectionStore.syncRun(component.$store.dataStore.selectedRunId);
   // Load data if a run is already selected
   if (component.$store.dataStore.selectedRunId) {
+    sync();
     loadFn();
   }
   // Watch for new data loads
   component.$watch('$store.dataStore.loadTick', () => {
+    sync();
     loadFn();
+  });
+}
+
+/**
+ * Sets up a watcher that redraws a plot when the focused switch or link changes.
+ * @param {Object} component - Component instance
+ * @param {Function} redraw - Function to call when the selection changes
+ */
+export function setupSelectionWatcher(component, redraw) {
+  component.$watch('$store.selectionStore.selected', () => {
+    if (component.isPlotInitialized) {
+      redraw();
+    }
   });
 }
 
