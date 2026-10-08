@@ -1,0 +1,33 @@
+{% comment %}
+Every directed link's activity across the whole run, one row per link. Shows the
+run rather than the active window, and marks the window on it: clicking a column
+moves the window there.
+{% endcomment %}
+<div class="card bg-base-100" x-data="linkHeatmap">
+  <div class="card-body">
+    <h2 class="card-title text-white">Link Activity Over Time</h2>
+
+    <div x-show="noData" x-cloak class="flex items-center justify-center h-48 text-base-content/50">
+      <span>This run has no FFW port samples to chart.</span>
+    </div>
+
+    <div id="linkHeatmap" x-show="!noData"></div>
+
+    <p class="text-xs opacity-60" x-show="!noData && isPlotInitialized" x-cloak>
+      Click a column to move the time window there.
+    </p>
+  </div>
+
+  <div class="flex" x-show="!noData && isPlotInitialized" x-cloak>
+    <div class="flex-1 selects">
+      <fieldset>
+        <legend class="fieldset-legend">Choose metric</legend>
+        <select class="select" x-model="selectedMetric" @change="updatePlotData()">
+          <template x-for="metric in metricList" :key="metric.key">
+            <option :value="metric.key" x-text="metric.label"></option>
+          </template>
+        </select>
+      </fieldset>
+    </div>
+  </div>
+</div>

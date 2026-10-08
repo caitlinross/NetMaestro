@@ -162,9 +162,24 @@ export const timeWindowStore = {
     if (!this.ready) {
       return;
     }
+    this.seekTime(
+      this.bounds.min + clamp(fraction, 0, 1) * Math.max(this.span - this.sliceWidth, 0),
+    );
+  },
+
+  /**
+   * Put the window at a point in the run, so a plot can hand over a time the
+   * user picked off its own axis.
+   *
+   * @param {number} time - Where the slice should start
+   */
+  seekTime(time) {
+    if (!this.ready) {
+      return;
+    }
     const width = this.sliceWidth;
-    const travel = Math.max(this.span - width, 0);
-    const start = this.bounds.min + clamp(fraction, 0, 1) * travel;
+    const last = Math.max(this.bounds.min, this.bounds.max - width);
+    const start = clamp(time, this.bounds.min, last);
     this.setWindow(start, start + width);
   },
 
