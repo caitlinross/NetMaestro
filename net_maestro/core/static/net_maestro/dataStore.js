@@ -82,6 +82,9 @@ export const dataStore = {
   // Switch names from the run's topology, indexed by switch_id. Empty when the run
   // has no topology to read, and plots then fall back to the numeric ids.
   switchNames: [],
+  // Where to fetch the run's topology from, as { name, url }, or null when the run
+  // names none. The network view needs it to know what to draw.
+  topology: null,
   // Per-slot source override chosen in the UI, e.g. { simulation: 'ffw' }.
   slotSources: {},
 
@@ -141,6 +144,7 @@ export const dataStore = {
     this.simulationType = simulationType;
     this.datasets = null;
     this.switchNames = [];
+    this.topology = null;
     this.slotSources = {};
     // Plots load once the manifest lands, so they resolve against the real datasets.
     this.fetchDatasets();
@@ -155,6 +159,7 @@ export const dataStore = {
         const manifest = await response.json();
         this.datasets = manifest.datasets;
         this.switchNames = manifest.switch_names ?? [];
+        this.topology = manifest.topology ?? null;
       }
     } catch (error) {
       console.warn('Failed to fetch run datasets; falling back to simulation type', error);

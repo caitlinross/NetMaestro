@@ -85,6 +85,10 @@
         </div>
         {% include 'net_maestro/plots/timeWindowControl.html' %}
         <div class="flex flex-col gap-4 h-full">
+          <div class="bg-base-100 rounded-lg min-w-0">
+            {% include 'net_maestro/plots/networkView.html' %}
+          </div>
+
           <div class="grid grid-cols-2 gap-4 min-w-0">
             <div class="bg-base-100 rounded-lg min-w-0">
               {% include 'net_maestro/plots/heatmap.html' %}

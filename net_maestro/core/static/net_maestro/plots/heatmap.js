@@ -13,6 +13,7 @@ import { profileForSlot } from './plotProfiles.js';
 import {
   axisConfig,
   DARK_LAYOUT,
+  maxValuePerSlice,
   purgePlot,
   recordsInWindow,
   reportTimeExtent,
@@ -213,25 +214,13 @@ export const heatmapPlot = () => ({
    */
   maxCellPerSlice(store) {
     const { sourceKey, destKey, timeKey } = this.profile;
-    const { min, max } = store.bounds;
-    const span = max - min;
-    const totals = new Map();
-    let ceiling = 0;
-    for (const record of this.records) {
-      const time = record[timeKey];
-      if (!Number.isFinite(time)) {
-        continue;
-      }
-      const slice = Math.min(
-        Math.floor(((time - min) / span) * store.sliceCount),
-        store.sliceCount - 1,
-      );
-      const cell = `${slice}|${record[sourceKey]}_${record[destKey]}`;
-      const total = (totals.get(cell) ?? 0) + this.cellValue(record);
-      totals.set(cell, total);
-      ceiling = Math.max(ceiling, total);
-    }
-    return ceiling > 0 ? ceiling : null;
+    return maxValuePerSlice(this.records, {
+      timeKey,
+      bounds: store.bounds,
+      sliceCount: store.sliceCount,
+      keyOf: (record) => `${record[sourceKey]}_${record[destKey]}`,
+      amountOf: (record) => this.cellValue(record),
+    });
   },
 
   updatePlotData() {

@@ -16,6 +16,11 @@ import Plotly from 'plotly';
 export const SECONDS_FROM_NS = { scale: 1e-9, suffix: ' s' };
 export const RAW_TIME = { scale: 1, suffix: '' };
 
+// A link whose output port paused. Deliberately off the Viridis ramp that the
+// heatmaps and the network view share, which ends in yellow: an amber pause
+// would read as merely a busy link.
+export const PAUSED_COLOR = '#ff4d4d';
+
 /**
  * Dark theme layout configuration for Plotly plots.
  */
@@ -464,4 +469,39 @@ export function setupTimeWindowWatcher(component, redraw) {
       redraw();
     }
   });
+}
+
+/**
+ * Highest total any one group reaches within a single slice of the run.
+ *
+ * Color scales pinned to this stay comparable from frame to frame during a
+ * replay, where autoscaling each frame would recolor everything on every step.
+ * @param {Array} records - Data records
+ * @param {Object} options - How to slice and group
+ * @param {string} options.timeKey - Name of the time column
+ * @param {{min: number, max: number}} options.bounds - The run's full time extent
+ * @param {number} options.sliceCount - How many slices the run divides into
+ * @param {Function} options.keyOf - Returns the group a record belongs to
+ * @param {Function} options.amountOf - Returns what a record contributes
+ * @returns {?number} The maximum, or null when nothing lands in a slice
+ */
+export function maxValuePerSlice(records, { timeKey, bounds, sliceCount, keyOf, amountOf }) {
+  const span = bounds.max - bounds.min;
+  if (!(span > 0)) {
+    return null;
+  }
+  const totals = new Map();
+  let ceiling = 0;
+  for (const record of records) {
+    const time = record[timeKey];
+    if (!Number.isFinite(time)) {
+      continue;
+    }
+    const slice = Math.min(Math.floor(((time - bounds.min) / span) * sliceCount), sliceCount - 1);
+    const cell = `${slice}|${keyOf(record)}`;
+    const total = (totals.get(cell) ?? 0) + amountOf(record);
+    totals.set(cell, total);
+    ceiling = Math.max(ceiling, total);
+  }
+  return ceiling > 0 ? ceiling : null;
 }

@@ -1,0 +1,40 @@
+{% comment %}
+The run's topology, colored by what the run was doing over the shared time
+window. Needs a run that carries an FFW config, since the switches and links
+come from the topology file rather than from the run's own records.
+{% endcomment %}
+<div class="card bg-base-100 h-full" x-data="networkView">
+  <div class="card-body">
+    <h2 class="card-title text-white">Network View</h2>
+
+    <div x-show="unavailable" x-cloak
+         class="flex items-center justify-center h-64 text-base-content/50 text-center px-6">
+      <span x-text="unavailable"></span>
+    </div>
+
+    <div x-show="loading" x-cloak class="flex items-center justify-center h-64">
+      <span class="loading loading-spinner loading-lg"></span>
+    </div>
+
+    <div x-show="!(unavailable || loading)" class="flex flex-col gap-2 h-full">
+      <div x-ref="canvas" class="w-full rounded-lg bg-base-300" style="min-height: 28rem;"></div>
+
+      <div class="flex items-center gap-4 text-xs opacity-70 flex-wrap">
+        <div class="flex items-center gap-2">
+          <span>Buffer / link load</span>
+          <span class="flex h-3 w-24 rounded overflow-hidden">
+            <template x-for="stop in rampStops" :key="stop">
+              <span class="flex-1" :style="`background:${stop}`"></span>
+            </template>
+          </span>
+          <span>low → high</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="inline-block w-6 border-t-2 border-dashed"
+                :style="`border-color:${pausedColor}`"></span>
+          <span>output paused</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
