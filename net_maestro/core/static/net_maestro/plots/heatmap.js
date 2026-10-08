@@ -1,6 +1,11 @@
 /**
  * Alpine.js component for heatmap visualization.
  * Displays event communication patterns between LPs as a heatmap.
+ *
+ * The matrix sums over every sample the run holds, unless the shared time window
+ * narrows it to one slice. Axes and the color scale are held to the whole run
+ * either way, so a slice can be read against the run it came from rather than
+ * against itself.
  */
 import _ from 'lodash';
 import Plotly from 'plotly';
@@ -9,9 +14,12 @@ import {
   axisConfig,
   DARK_LAYOUT,
   purgePlot,
+  recordsInWindow,
+  reportTimeExtent,
   setupAxisState,
   setupLoadWatcher,
   setupPlot,
+  setupTimeWindowWatcher,
 } from './plotUtils.js';
 
 export const heatmapPlot = () => ({
@@ -20,6 +28,9 @@ export const heatmapPlot = () => ({
   noData: false,
   records: [],
   selectedMetric: null,
+  // Highest cell value any one slice reaches, cached per metric and slice count.
+  sliceCeiling: null,
+  sliceCeilingKey: null,
 
   get profile() {
     const store = this.$store.dataStore;
@@ -58,6 +69,7 @@ export const heatmapPlot = () => ({
   init() {
     setupAxisState(this, 'heatmapPlot', [{ prop: 'selectedMetric', default: 'num_messages' }]);
     setupLoadWatcher(this, () => this.load());
+    setupTimeWindowWatcher(this, () => this.updatePlotData());
   },
 
   /**
@@ -100,6 +112,9 @@ export const heatmapPlot = () => ({
     );
     const { include } = this.profile;
     this.records = (payload?.data ?? []).filter((record) => !include || include(record));
+    this.sliceCeiling = null;
+    this.sliceCeilingKey = null;
+    reportTimeExtent(this, this.records, this.profile.timeKey, this.profile.timeUnit);
     // A saved metric may belong to another simulation type; use this type's first metric.
     if (!this.metricList.some((m) => m.key === this.selectedMetric && !m.disabled)) {
       this.selectedMetric = this.metricList[0].key;
@@ -116,13 +131,31 @@ export const heatmapPlot = () => ({
     purgePlot(this, 'heatmapPlotEl');
   },
 
+  /** The metric currently being summed into the cells. */
+  get metric() {
+    return this.metricList.find((m) => m.key === this.selectedMetric);
+  },
+
+  /**
+   * What one record contributes to its cell: the metric's own value when the
+   * metric sums one, and otherwise a single count of the record.
+   *
+   * @param {Object} record - One data record
+   * @returns {number} The record's contribution
+   */
+  cellValue(record) {
+    const metric = this.metric;
+    return metric?.aggregate === 'sum' ? (record[metric.key] ?? 0) : 1;
+  },
+
   createHeatmapMatrix() {
     if (this.records.length === 0) {
       return null;
     }
-    const { sourceKey, destKey } = this.profile;
-    const metric = this.metricList.find((m) => m.key === this.selectedMetric);
+    const { sourceKey, destKey, timeKey } = this.profile;
 
+    // Axes come from every record, not just the windowed ones, so the grid holds
+    // still while the window moves over it.
     const sortedSources = _(this.records)
       .map(sourceKey)
       .reject(_.isUndefined)
@@ -130,11 +163,12 @@ export const heatmapPlot = () => ({
       .sortBy()
       .value();
     const sortedDests = _(this.records).map(destKey).reject(_.isUndefined).uniq().sortBy().value();
+
+    const windowed = recordsInWindow(this.records, timeKey, this.$store.timeWindowStore.window);
     const totals = {};
-    for (const record of this.records) {
+    for (const record of windowed) {
       const cell = `${record[sourceKey]}_${record[destKey]}`;
-      const value = metric?.aggregate === 'sum' ? (record[metric.key] ?? 0) : 1;
-      totals[cell] = (totals[cell] ?? 0) + value;
+      totals[cell] = (totals[cell] ?? 0) + this.cellValue(record);
     }
 
     const z = sortedSources.map((source) =>
@@ -148,6 +182,58 @@ export const heatmapPlot = () => ({
     };
   },
 
+  /**
+   * The value the color scale tops out at, or null to let Plotly autoscale.
+   *
+   * Autoscaling per frame would recolor the whole grid on every step of a
+   * replay, so while a window is set the scale is pinned to the busiest cell any
+   * one slice of this run reaches. That costs one pass over the records, cached
+   * until the metric or the slice count changes.
+   *
+   * @returns {?number} The ceiling for `zmax`
+   */
+  colorCeiling() {
+    const store = this.$store.timeWindowStore;
+    if (!(store.window && store.ready && this.profile.timeKey)) {
+      return null;
+    }
+    const key = `${this.selectedMetric}|${store.sliceCount}`;
+    if (this.sliceCeilingKey !== key) {
+      this.sliceCeiling = this.maxCellPerSlice(store);
+      this.sliceCeilingKey = key;
+    }
+    return this.sliceCeiling;
+  },
+
+  /**
+   * Highest value any one cell reaches within a single slice of the run.
+   *
+   * @param {Object} store - The time window store, for the run's bounds and slicing
+   * @returns {?number} The maximum, or null when nothing lands in a slice
+   */
+  maxCellPerSlice(store) {
+    const { sourceKey, destKey, timeKey } = this.profile;
+    const { min, max } = store.bounds;
+    const span = max - min;
+    const totals = new Map();
+    let ceiling = 0;
+    for (const record of this.records) {
+      const time = record[timeKey];
+      if (!Number.isFinite(time)) {
+        continue;
+      }
+      const slice = Math.min(
+        Math.floor(((time - min) / span) * store.sliceCount),
+        store.sliceCount - 1,
+      );
+      const cell = `${slice}|${record[sourceKey]}_${record[destKey]}`;
+      const total = (totals.get(cell) ?? 0) + this.cellValue(record);
+      totals.set(cell, total);
+      ceiling = Math.max(ceiling, total);
+    }
+    return ceiling > 0 ? ceiling : null;
+  },
+
   updatePlotData() {
     if (!this.heatmapPlotEl || this.records.length === 0) {
       return;
@@ -158,8 +244,8 @@ export const heatmapPlot = () => ({
       return;
     }
 
-    const metricLabel =
-      this.metricList.find((m) => m.key === this.selectedMetric)?.label || this.selectedMetric;
+    const metricLabel = this.metric?.label || this.selectedMetric;
+    const ceiling = this.colorCeiling();
     Plotly.react(
       this.heatmapPlotEl,
       [
@@ -171,6 +257,7 @@ export const heatmapPlot = () => ({
           colorscale: 'Viridis',
           // On the trace: the plot has no coloraxis for a layout-level colorbar to reach.
           colorbar: { title: { text: metricLabel }, titleside: 'right' },
+          ...(ceiling === null ? {} : { zmin: 0, zmax: ceiling }),
         },
       ],
       {

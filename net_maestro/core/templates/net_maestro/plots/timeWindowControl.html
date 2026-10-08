@@ -1,0 +1,42 @@
+{% comment %}
+Controls the slice of virtual time the plots on this tab read.
+
+Hidden until some plot has reported a time extent, since there is nothing to
+scrub until then. With no slice set every plot aggregates over the whole run,
+which is where a newly selected run starts.
+{% endcomment %}
+<div class="flex items-center gap-3 pb-3" x-data="{}" x-show="$store.timeWindowStore.ready" x-cloak>
+  <button type="button"
+          class="btn btn-sm btn-primary"
+          @click="$store.timeWindowStore.toggle()"
+          :aria-label="$store.timeWindowStore.playing ? 'Pause replay' : 'Play replay'">
+    <i :class="$store.timeWindowStore.playing ? 'ri-pause-line' : 'ri-play-line'"></i>
+    <span x-text="$store.timeWindowStore.playing ? 'Pause' : 'Play'"></span>
+  </button>
+
+  <input type="range"
+         class="range range-xs range-primary flex-1"
+         min="0" max="1" step="0.001"
+         aria-label="Position in the run"
+         :value="$store.timeWindowStore.position"
+         @input="$store.timeWindowStore.seek(Number($event.target.value))">
+
+  <span class="text-sm opacity-70 whitespace-nowrap font-mono"
+        x-text="$store.timeWindowStore.label"></span>
+
+  <select class="select select-xs w-36"
+          aria-label="Replay detail"
+          :value="$store.timeWindowStore.samplesPerSlice"
+          @change="$store.timeWindowStore.setSamplesPerSlice(Number($event.target.value))">
+    <template x-for="option in $store.timeWindowStore.sliceOptions" :key="option.samples">
+      <option :value="option.samples" x-text="option.label"></option>
+    </template>
+  </select>
+
+  <button type="button"
+          class="btn btn-xs btn-ghost"
+          :disabled="!$store.timeWindowStore.window"
+          @click="$store.timeWindowStore.clear()">
+    Whole run
+  </button>
+</div>

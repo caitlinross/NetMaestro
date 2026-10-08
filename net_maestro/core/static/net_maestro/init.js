@@ -6,11 +6,13 @@ import { networkTimePlot } from './plots/networkTimePlot.js';
 import { parallelCoords } from './plots/parallelCoords.js';
 import { scatterPlot } from './plots/scatterPlot.js';
 import { timePlot } from './plots/timePlot.js';
+import { timeWindowStore } from './timeWindowStore.js';
 import { topologyCanvas } from './topology/topologyCanvas.js';
 import { uiStateStore } from './uiStateStore.js';
 
 Alpine.store('dataStore', dataStore);
 Alpine.store('plotSyncStore', plotSyncStore);
+Alpine.store('timeWindowStore', timeWindowStore);
 Alpine.store('uiStateStore', uiStateStore);
 Alpine.data('dataFileSelector', dataFileSelector);
 Alpine.data('heatmapPlot', heatmapPlot);

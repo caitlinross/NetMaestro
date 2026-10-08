@@ -9,6 +9,13 @@
  */
 import Plotly from 'plotly';
 
+// How a dataset's time column is turned into something readable. The FFW model
+// reports virtual time in nanoseconds, and its fluid interval is one second, so
+// seconds are the unit the run was configured in and the one to show. ROSS
+// virtual time is model-defined, so it is left as it comes.
+export const SECONDS_FROM_NS = { scale: 1e-9, suffix: ' s' };
+export const RAW_TIME = { scale: 1, suffix: '' };
+
 /**
  * Dark theme layout configuration for Plotly plots.
  */
@@ -380,4 +387,81 @@ export function recordsForTimeAxis(records, timeAxes, xKey) {
  */
 export function getLabel(valueList, key, fallback) {
   return valueList.find((item) => item.key === key)?.label ?? fallback;
+}
+
+/**
+ * Returns the extent of a time column, and how many distinct times it holds.
+ * The count is what the shared window slices by, so that replay steps sample by
+ * sample rather than through gaps the run never sampled.
+ * @param {Array} records - Data records
+ * @param {string} timeKey - Name of the time column
+ * @returns {?{min: number, max: number, samples: number}} The extent, or null when unusable
+ */
+export function timeExtent(records, timeKey) {
+  if (!timeKey) {
+    return null;
+  }
+  const times = new Set();
+  for (const record of records) {
+    const value = record[timeKey];
+    if (Number.isFinite(value)) {
+      times.add(value);
+    }
+  }
+  if (times.size === 0) {
+    return null;
+  }
+  const min = Math.min(...times);
+  const max = Math.max(...times);
+  return max > min ? { min, max, samples: times.size } : null;
+}
+
+/**
+ * Returns the records falling inside the shared time window.
+ * All of them when no window is set, which is the whole-run aggregate.
+ * @param {Array} records - Data records
+ * @param {string} timeKey - Name of the time column
+ * @param {?{min: number, max: number}} timeWindow - The active slice, or null
+ * @returns {Array} The records to plot
+ */
+export function recordsInWindow(records, timeKey, timeWindow) {
+  if (!(timeWindow && timeKey)) {
+    return records;
+  }
+  return records.filter((record) => {
+    const value = record[timeKey];
+    return value >= timeWindow.min && value <= timeWindow.max;
+  });
+}
+
+/**
+ * Reports a plot's time extent to the shared window store, so scrubbing and
+ * playback cover everything the run's plots hold between them.
+ * @param {Object} component - Component instance
+ * @param {Array} records - Data records
+ * @param {string} timeKey - Name of the time column
+ * @param {{scale: number, suffix: string}} unit - How to show that column's values
+ */
+export function reportTimeExtent(component, records, timeKey, unit = RAW_TIME) {
+  const extent = timeExtent(records, timeKey);
+  const runId = component.$store.dataStore.selectedRunId;
+  if (extent) {
+    component.$store.timeWindowStore.reportBounds(runId, { ...extent, unit });
+  } else {
+    // Still claim the run, so a previous run's window does not linger.
+    component.$store.timeWindowStore.reportBounds(runId, { min: Number.NaN, max: Number.NaN });
+  }
+}
+
+/**
+ * Sets up a watcher that redraws a plot when the shared time window moves.
+ * @param {Object} component - Component instance
+ * @param {Function} redraw - Function to call when the window changes
+ */
+export function setupTimeWindowWatcher(component, redraw) {
+  component.$watch('$store.timeWindowStore.window', () => {
+    if (component.isPlotInitialized) {
+      redraw();
+    }
+  });
 }
